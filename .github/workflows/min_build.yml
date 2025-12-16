@@ -117,7 +117,7 @@ jobs:
           sed -i '/--FAT_CLIENT_START--/,/--FAT_CLIENT_END--/d' pubspec.yaml
           sed -i '/--FAT_CLIENT_START--/,/--FAT_CLIENT_END--/d' lib/main.dart
 
-          flutter build windows --build-name="$BUILD_VER"
+          flutter build windows --build-name="${{ env.remote_name }}"
 
           # Copy needed runtime DLLs
           cp "${WINDIR}/system32/msvcp140.dll" "$RELEASE_DIR"
