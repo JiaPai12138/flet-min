@@ -1,0 +1,185 @@
+name: Mini Build
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  ROOT: "${{ github.workspace }}"
+  SDK_PYTHON: "${{ github.workspace }}/sdk/python"
+  SCRIPTS: "${{ github.workspace }}/.github/scripts"
+  UV_PYTHON: "3.12"
+  PYODIDE_VERSION: "0.27.7"
+
+jobs:
+  # =============================
+  # Build Flet Client for Windows
+  # =============================
+  build_windows:
+    name: Build Flet Client for Windows
+    runs-on: windows-2022
+
+    env:
+      has_release: true
+      tag_name: ""
+      release_name: ""
+      remote_name: ""
+      remote_tag: ""
+      move_on: true
+      PYPI_VER: ""
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Get latest release info
+        shell: bash
+        run: |
+          response=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest)
+
+          if echo "$response" | grep -q "Not Found"; then
+            echo "has_release=false" >> $GITHUB_ENV
+          else
+            echo "has_release=true" >> $GITHUB_ENV
+            echo "tag_name=$(echo "$response" | jq -r .tag_name)" >> $GITHUB_ENV
+            echo "release_name=$(echo "$response" | jq -r .name)" >> $GITHUB_ENV
+          fi
+
+      - name: Get latest repo release tag
+        shell: bash
+        run: |
+          response=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/flet-dev/flet/releases/latest)
+
+          if echo "$response" | grep -q "Not Found"; then
+            echo "move_on=false" >> $GITHUB_ENV
+            exit 0
+          else
+            echo "remote_tag=$(echo "$response" | jq -r .tag_name)" >> $GITHUB_ENV
+            echo "remote_name=$(echo "$response" | jq -r .name)" >> $GITHUB_ENV
+            echo "PYPI_VER=$(echo "$response" | jq -r .tag_name | sed 's/^v//')" >> $GITHUB_ENV
+          fi
+
+      - name: Compare release tags
+        shell: bash
+        run: |
+          echo "Github tag: ${{ env.tag_name }}"
+          echo "Remote tag: ${{ env.remote_tag }}"
+
+          if [ "${{ env.tag_name }}" = "${{ env.remote_tag }}" ]; then
+            echo "move_on=false" >> $GITHUB_ENV
+            exit 0
+          else
+            echo "⚠️ Tags differ! Compiling new version!"
+            echo "tag_name=${{ env.remote_tag }}" >> $GITHUB_ENV
+            echo "release_name=${{ env.remote_name }}" >> $GITHUB_ENV
+            exit 0
+          fi
+
+      - name: Backup
+        if: ${{ env.move_on == 'true' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: backups
+          if-no-files-found: error
+          path: client/
+
+      - name: Fetch remote code
+        if: ${{ env.move_on == 'true' }}
+        shell: bash
+        run: |
+          git remote set-url origin https://github.com/flet-dev/flet.git
+          git fetch origin
+          # git checkout "${{ env.tag_name }}" -f
+          git checkout origin/HEAD -f
+
+      - name: Download Backup
+        if: ${{ env.move_on == 'true' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: backups
+          path: client/
+
+      - name: Setup uv
+        if: ${{ env.move_on == 'true' }}
+        uses: astral-sh/setup-uv@v6
+
+      - name: Setup Flutter
+        if: ${{ env.move_on == 'true' }}
+        uses: kuhnroyal/flutter-fvm-config-action/setup@v3
+        with:
+          path: '.fvmrc'
+          cache: true
+
+      - name: Prepare env and patch versions
+        if: ${{ env.move_on == 'true' }}
+        shell: bash
+        run: |
+          source "$SCRIPTS/common.sh"
+          patch_python_package_versions
+          echo "package patched"
+          patch_toml_versions "${SDK_PYTHON}/packages/flet-desktop/pyproject.toml" "${{ env.PYPI_VER }}"
+
+      - name: Build Flutter Windows client
+        if: ${{ env.move_on == 'true' }}
+        env:
+          RUNNER_DIR: ${{ env.ROOT }}/client/build/windows/x64/runner
+          RELEASE_DIR: ${{ env.ROOT }}/client/build/windows/x64/runner/Release
+        shell: bash
+        working-directory: client
+        run: |
+          flutter pub outdated
+          flutter pub upgrade
+          # flutter pub get
+
+          flutter build windows --build-name="${{ env.PYPI_VER }}" --release --split-debug-info=./symbols --obfuscate
+
+          # Copy needed runtime DLLs
+          cp "${WINDIR}/system32/msvcp140.dll" "$RELEASE_DIR"
+          cp "${WINDIR}/system32/vcruntime140.dll" "$RELEASE_DIR"
+          cp "${WINDIR}/system32/vcruntime140_1.dll" "$RELEASE_DIR"
+
+          # Rename Release folder to flet
+          mv "$RELEASE_DIR" "${RUNNER_DIR}/flet"
+
+          # Zip up the runner
+          cd "$RUNNER_DIR"
+          7z a "${ROOT}/client/flet-windows.zip" "flet"
+
+          # Stage app into flet-desktop package
+          FLET_DESKTOP_APP="${SDK_PYTHON}/packages/flet-desktop/src/flet_desktop/app"
+          mkdir -p "$FLET_DESKTOP_APP"
+          cp -r "flet" "${FLET_DESKTOP_APP}/flet"
+
+      - name: Build flet-desktop Python package
+        if: ${{ env.move_on == 'true' }}
+        shell: bash
+        run: |
+          source "$SCRIPTS/common.sh"
+
+          cd "$SDK_PYTHON"
+          uv build --package flet-desktop --wheel
+
+          # Ensure glob expands
+          shopt -s nullglob
+
+          for wheel in dist/*-py3-none-any.whl; do
+            repackage_wheel_with_tag "$wheel" "py3-none-win_amd64"
+            repackage_wheel_with_tag "$wheel" "py3-none-win32"
+            rm -f "$wheel"
+          done
+
+      - name: Upload artifacts
+        if: ${{ env.move_on == 'true' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: windows-artifacts
+          if-no-files-found: error
+          path: |
+            client/flet-windows.zip
+            sdk/python/dist/*.whl
