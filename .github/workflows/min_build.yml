@@ -135,7 +135,8 @@ jobs:
         run: |
           flutter pub outdated
           flutter pub upgrade
-          # flutter pub get
+          flutter clean
+          flutter pub deps
 
           flutter build windows --build-name="${{ env.PYPI_VER }}" --release --split-debug-info=./symbols --obfuscate
 
@@ -182,4 +183,5 @@ jobs:
           if-no-files-found: error
           path: |
             client/flet-windows.zip
-            sdk/python/dist/*.whl
+            client/pubspec.lock
+            sdk/python/dist/*amd64.whl
