@@ -95,8 +95,8 @@ jobs:
         run: |
           git remote set-url origin https://github.com/flet-dev/flet.git
           git fetch origin
-          # git checkout "${{ env.tag_name }}" -f
-          git checkout origin/HEAD -f
+          git checkout "${{ env.tag_name }}" -f
+          # git checkout origin/HEAD -f
 
       - name: Download Backup
         if: ${{ env.move_on == 'true' }}
@@ -120,6 +120,8 @@ jobs:
         if: ${{ env.move_on == 'true' }}
         shell: bash
         run: |
+          sed -i '/--FAT_CLIENT_START--/,/--FAT_CLIENT_END--/d' client/pubspec.yaml
+          sed -i '/--FAT_CLIENT_START--/,/--FAT_CLIENT_END--/d' client/lib/main.dart
           source "$SCRIPTS/common.sh"
           patch_python_package_versions
           echo "package patched"
@@ -184,4 +186,17 @@ jobs:
           path: |
             client/flet-windows.zip
             client/pubspec.lock
+            sdk/python/dist/*amd64.whl
+
+      - name: Create Release
+        if: ${{ env.move_on == 'true' }}
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.tag_name }}
+          name: ${{ env.release_name }}
+          draft: false
+          prerelease: false
+          files: |
             sdk/python/dist/*amd64.whl

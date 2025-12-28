@@ -1,4 +1,19 @@
 import 'package:flet/flet.dart';
+// --FAT_CLIENT_START--
+import 'package:flet_ads/flet_ads.dart' as flet_ads;
+import 'package:flet_audio/flet_audio.dart' as flet_audio;
+import 'package:flet_audio_recorder/flet_audio_recorder.dart'
+    as flet_audio_recorder;
+import "package:flet_flashlight/flet_flashlight.dart" as flet_flashlight;
+import 'package:flet_geolocator/flet_geolocator.dart' as flet_geolocator;
+import 'package:flet_map/flet_map.dart' as flet_map;
+import 'package:flet_permission_handler/flet_permission_handler.dart'
+    as flet_permission_handler;
+import 'package:flet_rive/flet_rive.dart' as flet_rive;
+import 'package:flet_video/flet_video.dart' as flet_video;
+import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:flet_webview/flet_webview.dart' as flet_webview;
+// --FAT_CLIENT_END--
 import 'package:flet_charts/flet_charts.dart' as flet_charts;
 import 'package:flet_datatable2/flet_datatable2.dart' as flet_datatable2;
 import 'package:flet_lottie/flet_lottie.dart' as flet_lottie;
@@ -23,6 +38,19 @@ void main([List<String>? args]) async {
     flet_datatable2.Extension(),
     flet_charts.Extension(),
   ];
+
+  // --FAT_CLIENT_START--
+  extensions.add(flet_audio_recorder.Extension());
+  extensions.add(flet_geolocator.Extension());
+  extensions.add(flet_permission_handler.Extension());
+  extensions.add(flet_map.Extension());
+  extensions.add(flet_ads.Extension());
+  extensions.add(flet_rive.Extension());
+  extensions.add(flet_webview.Extension());
+  extensions.add(flet_flashlight.Extension());
+  extensions.add(flet_audio.Extension());
+  extensions.add(flet_video.Extension());
+  // --FAT_CLIENT_END--
 
   // initialize extensions
   for (var extension in extensions) {
