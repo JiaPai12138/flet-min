@@ -83,7 +83,7 @@ jobs:
 
       - name: Backup
         if: ${{ env.move_on == 'true' }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: backups
           if-no-files-found: error
@@ -179,7 +179,7 @@ jobs:
 
       - name: Upload artifacts
         if: ${{ env.move_on == 'true' }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: windows-artifacts
           if-no-files-found: error
