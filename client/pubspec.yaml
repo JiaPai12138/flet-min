@@ -74,21 +74,12 @@ dependencies:
   flet_charts:
     path: ../sdk/python/packages/flet-charts/src/flutter/flet_charts
 
-  cupertino_icons: ^1.0.6
-# --FAT_CLIENT_START--
-  wakelock_plus: ^1.4.0
-  package_info_plus: ^9.0.0
-# --FAT_CLIENT_START--
-
   integration_test:
     sdk: flutter
 
 dependency_overrides:
   flet:
     path: ../packages/flet
-# --FAT_CLIENT_START--
-  package_info_plus: ^9.0.0
-# --FAT_CLIENT_START--
 
 dev_dependencies:
   flutter_test:
@@ -101,7 +92,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^1.0.0
-# --FAT_CLIENT_START--
+# --FAT_CLIENT_END--
 
   # Docs: https://pub.dev/packages/flutter_launcher_icons
   flutter_launcher_icons: "^0.14.4"
