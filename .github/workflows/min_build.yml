@@ -107,7 +107,7 @@ jobs:
 
       - name: Setup uv
         if: ${{ env.move_on == 'true' }}
-        uses: astral-sh/setup-uv@v8.3.2
+        uses: astral-sh/setup-uv@v9.0.0
 
       - name: Setup Flutter
         if: ${{ env.move_on == 'true' }}
