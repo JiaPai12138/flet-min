@@ -107,7 +107,7 @@ jobs:
 
       - name: Setup uv
         if: ${{ env.move_on == 'true' }}
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v8.3.2
 
       - name: Setup Flutter
         if: ${{ env.move_on == 'true' }}
@@ -123,6 +123,7 @@ jobs:
           sed -i '/--FAT_CLIENT_START--/,/--FAT_CLIENT_END--/d' client/pubspec.yaml
           sed -i '/--FAT_CLIENT_START--/,/--FAT_CLIENT_END--/d' client/lib/main.dart
           source "$SCRIPTS/common.sh"
+          # sed -i "s/^version: .*/version: ${{ env.PYPI_VER }}/g" client/pubspec.yaml
           patch_python_package_versions
           echo "package patched"
           patch_toml_versions "${SDK_PYTHON}/packages/flet-desktop/pyproject.toml" "${{ env.PYPI_VER }}"
@@ -135,9 +136,10 @@ jobs:
         shell: bash
         working-directory: client
         run: |
-          flutter pub outdated
-          flutter pub upgrade
+          # flutter pub outdated
+          # flutter pub upgrade
           flutter clean
+          flutter pub get
           flutter pub deps
 
           flutter build windows --build-name="${{ env.PYPI_VER }}" --release --split-debug-info=./symbols --obfuscate
@@ -154,29 +156,6 @@ jobs:
           cd "$RUNNER_DIR"
           7z a "${ROOT}/client/flet-windows.zip" "flet"
 
-          # Stage app into flet-desktop package
-          FLET_DESKTOP_APP="${SDK_PYTHON}/packages/flet-desktop/src/flet_desktop/app"
-          mkdir -p "$FLET_DESKTOP_APP"
-          cp -r "flet" "${FLET_DESKTOP_APP}/flet"
-
-      - name: Build flet-desktop Python package
-        if: ${{ env.move_on == 'true' }}
-        shell: bash
-        run: |
-          source "$SCRIPTS/common.sh"
-
-          cd "$SDK_PYTHON"
-          uv build --package flet-desktop --wheel
-
-          # Ensure glob expands
-          shopt -s nullglob
-
-          for wheel in dist/*-py3-none-any.whl; do
-            repackage_wheel_with_tag "$wheel" "py3-none-win_amd64"
-            repackage_wheel_with_tag "$wheel" "py3-none-win32"
-            rm -f "$wheel"
-          done
-
       - name: Upload artifacts
         if: ${{ env.move_on == 'true' }}
         uses: actions/upload-artifact@v7
@@ -186,7 +165,6 @@ jobs:
           path: |
             client/flet-windows.zip
             client/pubspec.lock
-            sdk/python/dist/*amd64.whl
 
       - name: Create Release
         if: ${{ env.move_on == 'true' }}
@@ -199,4 +177,4 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            sdk/python/dist/*amd64.whl
+            client/flet-windows.zip
